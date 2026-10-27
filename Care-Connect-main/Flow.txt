@@ -1,0 +1,17 @@
+http://localhost:3000/
+
+sinhaaryan173@gmail.com
+Aryan7293
+
+http://localhost:3000/admin/login
+"name": "Aryan",
+"email": "aryan@careconnect.com",
+"password": "test123"
+
+http://localhost:3000/home-admin/login
+MorningStar
+star@gmail.com
+star123
+
+
+http://localhost:3000/register-home

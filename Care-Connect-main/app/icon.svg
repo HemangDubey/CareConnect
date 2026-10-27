@@ -1,0 +1,58 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D946EF"/>
+      <stop offset="40%" stop-color="#A855F7"/>
+      <stop offset="75%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#5B21B6"/>
+    </linearGradient>
+
+    <linearGradient id="letterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F5F3FF"/>
+    </linearGradient>
+
+    <filter id="letterGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#7C3AED" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="16" cy="16" r="15.5" fill="url(#mainGradient)" filter="url(#dropShadow)"/>
+
+  <!-- Inner ring -->
+  <circle cx="16" cy="16" r="12.5" fill="none" stroke="#FFFFFF" stroke-width="0.5" opacity="0.2"/>
+
+  <!-- CC Letters with GAP -->
+  <g transform="translate(16 16)" filter="url(#letterGlow)">
+    <!-- Left C -->
+    <path
+      d="M -5 -6
+         A 6 6 0 1 0 -5 6"
+      fill="none"
+      stroke="url(#letterGradient)"
+      stroke-width="3"
+      stroke-linecap="round"/>
+
+    <!-- Right C -->
+    <path
+      d="M 7 -6
+         A 6 6 0 1 0 7 6"
+      fill="none"
+      stroke="url(#letterGradient)"
+      stroke-width="3"
+      stroke-linecap="round"/>
+  </g>
+
+  <!-- Accent dots -->
+  <circle cx="8" cy="8" r="1" fill="#F472B6"/>
+  <circle cx="24" cy="10" r="0.8" fill="#F472B6"/>
+</svg>

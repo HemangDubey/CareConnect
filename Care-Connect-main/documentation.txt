@@ -1,0 +1,241 @@
+CareConnect — ER / Access & API Mapping (Entities, Relations, Access Permissions)
+
+---
+
+OVERVIEW
+
+This file lists all core entities (schemas), their relationships (for an ER diagram), and the role-based access rules (which role can perform which CRUD operations on which schema). It also lists recommended REST API endpoints for each action and authentication/authorization requirements.
+
+ENTITIES (Schemas)
+
+1. User
+
+   * Fields: _id, name, email, passwordHash, role, phone, address, createdAt, updatedAt, isVerified
+   * role: enum ['donor', 'volunteer', 'home_admin', 'super_admin']
+
+2. Home (Orphanage / OldAgeHome)
+
+   * Fields: _id, name, type, address, contactEmail, contactPhone, description, adminUserId (ref -> User), verificationStatus, verificationNotes, createdAt, updatedAt
+   * verificationStatus: enum ['pending', 'verified', 'rejected']
+
+3. DonationRequest
+
+   * Fields: _id, homeId (ref -> Home), title, description, items [{name, quantity, unit}], preferredDelivery, status, createdBy (ref -> User/home_admin), createdAt, updatedAt
+   * status: enum ['open', 'fulfilled', 'cancelled']
+
+4. VolunteerRequest
+
+   * Fields: _id, homeId (ref -> Home), title, description, requiredSkills, timeSlots, slotsAvailable, status, createdBy (ref -> User/home_admin), createdAt, updatedAt
+   * status: enum ['open', 'closed', 'cancelled']
+
+5. Donation (Donations Made)
+
+   * Fields: _id, donationRequestId (ref -> DonationRequest), donorId (ref -> User), itemsDonated [{name, quantity}], message, status, proof (optional), createdAt, updatedAt
+   * status: enum ['pending', 'accepted', 'rejected', 'collected']
+
+6. VolunteerApplication
+
+   * Fields: _id, volunteerRequestId (ref -> VolunteerRequest), volunteerId (ref -> User), status, appliedAt, reviewedAt, notes
+   * status: enum ['applied', 'accepted', 'rejected', 'withdrawn']
+
+7. AuthToken / Session (optional)
+
+   * Fields: _id, userId (ref -> User), token, expiresAt, createdAt
+
+8. Notification (optional)
+
+   * Fields: _id, userId (ref -> User), type, payload, isRead, createdAt
+
+9. AuditLog (optional)
+
+   * Fields: _id, actorId, action, targetCollection, targetId, metadata, timestamp
+
+RELATIONSHIPS (ER-style)
+
+* User (1) ---- (0..*) Home
+
+  * A User with role 'home_admin' is the adminUserId for exactly one Home (or possibly multiple if wanted). Represented as: Home.adminUserId -> User._id
+
+* Home (1) ---- (0..*) DonationRequest
+
+  * A Home creates many DonationRequests. DonationRequest.homeId -> Home._id
+
+* Home (1) ---- (0..*) VolunteerRequest
+
+  * A Home creates many VolunteerRequests. VolunteerRequest.homeId -> Home._id
+
+* DonationRequest (1) ---- (0..*) Donation
+
+  * Each DonationRequest can have many Donations. Donation.donationRequestId -> DonationRequest._id
+
+* VolunteerRequest (1) ---- (0..*) VolunteerApplication
+
+  * Each VolunteerRequest can have many VolunteerApplications. VolunteerApplication.volunteerRequestId -> VolunteerRequest._id
+
+* User (donor) (1) ---- (0..*) Donation
+
+  * A donor User may create multiple Donation records. Donation.donorId -> User._id
+
+* User (volunteer) (1) ---- (0..*) VolunteerApplication
+
+  * A volunteer User may apply to many VolunteerRequests. VolunteerApplication.volunteerId -> User._id
+
+* SuperAdmin (User.role == 'super_admin') oversees many Home verification records; there may be an AuditLog record for every action the superadmin takes.
+
+ROLE-BASED ACCESS CONTROL (High-level)
+
+Roles: anonymous (no token), authenticatedUser (donor/volunteer/home_admin), super_admin
+
+SCHEMA ACCESS TABLE (allowed actions)
+
+1. User Schema
+
+   * Create: public (register) -> POST /api/auth/register
+   * Read: user can read their own profile; super_admin can read any; home_admin can read limited details for homes they manage; admin endpoints for listing users restricted to super_admin
+   * Update: user can update their own profile; super_admin can update any user (e.g., change role or verify)
+   * Delete: super_admin only
+
+2. Home Schema
+
+   * Create: public request -> POST /api/homes/request (creates Home with verificationStatus='pending')
+   * Read: public can view verified homes via GET /api/homes (filter verified); home_admin can view & edit their own Home; super_admin can view all
+   * Update: home_admin (if owner) can update details before/after verification; super_admin can update verificationStatus and perform edits
+   * Delete: super_admin only (or home_admin request + super_admin approval)
+
+3. DonationRequest
+
+   * Create: home_admin (owner) -> POST /api/homes/:homeId/donation-requests
+   * Read: public authenticated users can list and view open donation requests -> GET /api/donation-requests, GET /api/donation-requests/:id
+   * Update: home_admin (owner) can update/cancel; super_admin can update/close
+   * Delete: home_admin (owner) or super_admin
+
+4. VolunteerRequest
+
+   * Create: home_admin (owner) -> POST /api/homes/:homeId/volunteer-requests
+   * Read: public authenticated users can list and view -> GET /api/volunteer-requests
+   * Update: home_admin (owner) or super_admin
+   * Delete: home_admin or super_admin
+
+5. Donation
+
+   * Create: donor user -> POST /api/donation-requests/:id/donate
+   * Read: donor can read their donations; home_admin can view donations tied to their home's DonationRequests; super_admin can view all
+   * Update: home_admin can change status (accepted/collected); donor can update/cancel pending donation; super_admin can audit/modify
+   * Delete: super_admin (or donor before accepted)
+
+6. VolunteerApplication
+
+   * Create: volunteer user -> POST /api/volunteer-requests/:id/apply
+   * Read: volunteer can view their applications; home_admin can view applications for their home's volunteer requests; super_admin can view all
+   * Update: home_admin can accept/reject application (PATCH /api/volunteer-applications/:id/review); volunteer can withdraw
+   * Delete: super_admin
+
+7. AuthToken / Session
+
+   * Create: POST /api/auth/login
+   * Invalidate: POST /api/auth/logout
+
+8. Notification
+
+   * Create: backend system actions (e.g., new application/donation) -> server generates notifications for relevant users
+   * Read: target user only
+
+RECOMMENDED API ENDPOINTS (organized by resource)
+
+Auth / User
+
+* POST /api/auth/register — public (creates User; role default 'donor' or 'volunteer' based on input)
+* POST /api/auth/login — public (returns JWT token)
+* POST /api/auth/logout — authenticated
+* GET /api/users/me — authenticated (returns current user)
+* PATCH /api/users/me — authenticated (update own profile)
+* GET /api/users/:id — super_admin or self (sensitive fields restricted)
+* GET /api/users — super_admin (list users)
+
+Home (Registration & Management)
+
+* POST /api/homes/request — public (create home registration request; verificationStatus='pending')
+* GET /api/homes — public (only verified shown unless super_admin)
+* GET /api/homes/:id — public (verified) / home_admin / super_admin (full)
+* PATCH /api/homes/:id — home_admin (if owner) / super_admin
+* DELETE /api/homes/:id — super_admin
+* GET /api/homes/pending — super_admin (list of pending verification requests)
+* POST /api/homes/:id/verify — super_admin (approve/reject, with notes)
+
+Donation Requests
+
+* POST /api/homes/:homeId/donation-requests — home_admin (creates)
+* GET /api/donation-requests — public (filter by home, status)
+* GET /api/donation-requests/:id — public / owner / super_admin
+* PATCH /api/donation-requests/:id — home_admin / super_admin
+* DELETE /api/donation-requests/:id — home_admin / super_admin
+
+Donations
+
+* POST /api/donation-requests/:id/donate — authenticated donor
+* GET /api/donations — authenticated (donor sees own; home_admin sees donations for their home; super_admin sees all)
+* GET /api/donations/:id — authorized users only
+* PATCH /api/donations/:id — home_admin (status change) / donor (cancel/pending) / super_admin
+
+Volunteer Requests
+
+* POST /api/homes/:homeId/volunteer-requests — home_admin
+* GET /api/volunteer-requests — public
+* GET /api/volunteer-requests/:id — public / owner / super_admin
+* PATCH /api/volunteer-requests/:id — home_admin / super_admin
+* DELETE /api/volunteer-requests/:id — home_admin / super_admin
+
+Volunteer Applications
+
+* POST /api/volunteer-requests/:id/apply — authenticated volunteer
+* GET /api/volunteer-applications — authenticated (volunteer sees own; home_admin sees for their home; super_admin sees all)
+* PATCH /api/volunteer-applications/:id/review — home_admin (accept/reject) / super_admin
+* PATCH /api/volunteer-applications/:id/withdraw — volunteer
+
+Misc
+
+* GET /api/notifications — authenticated user (their notifications)
+* GET /api/audit-logs — super_admin
+
+AUTH & MIDDLEWARE NOTES
+
+1. Authentication: JWT tokens issued at login; token required for protected endpoints in Authorization header (Bearer <token>). Refresh tokens optional.
+2. Authorization: Role-check middleware should assert user.role and optionally resource ownership (e.g., check that home_admin's user._id === Home.adminUserId for actions on that home).
+3. Ownership checks: Important to verify ownership on create/update/delete for home_admin actions.
+4. Input validation & rate limiting: Validate request bodies and add rate limits on public endpoints (e.g., home registration) to prevent abuse.
+5. Logging & auditing: Critical admin actions (verification, deletions) should be recorded in AuditLog.
+
+ER DIAGRAM HINTS (for drawing)
+
+* Draw User as central. Draw Home with a foreign key adminUserId referencing User.
+* Connect Home to DonationRequest and VolunteerRequest (one-to-many).
+* Connect DonationRequest to Donation (one-to-many).
+* Connect VolunteerRequest to VolunteerApplication (one-to-many).
+* Connect Donation to User (donorId) and VolunteerApplication to User (volunteerId) with lines back to User.
+* Super Admin is a special User node — indicate role-based access as notes on the diagram.
+
+SAMPLE PERMISSION MATRIX (compact)
+
+| Resource            | Anonymous           | Donor/Volunteer | Home Admin (owner)   | Super Admin |
+| ------------------- | ------------------- | --------------- | -------------------- | ----------- |
+| View Homes          | Yes (verified only) | Yes             | Yes (full)           | Yes (full)  |
+| Create Home Req     | Yes                 | Yes             | Yes                  | --          |
+| Manage Home         | No                  | No              | Yes (owner)          | Yes         |
+| Create DonationReq  | No                  | No              | Yes                  | Yes         |
+| View DonationReqs   | Yes                 | Yes             | Yes                  | Yes         |
+| Donate              | No                  | Yes             | No                   | Yes         |
+| Apply Volunteer     | No                  | Yes             | No                   | Yes         |
+| Review Applications | No                  | No              | Yes (for their home) | Yes         |
+| User Management     | No                  | No              | No                   | Yes         |
+| Audit / Logs        | No                  | No              | No                   | Yes         |
+
+NOTES & RECOMMENDATIONS
+
+• Keep role checks and ownership checks in separate middleware so they remain composable.
+• Consider a `roles` table or config if you might expand roles later (e.g., support 'partner_org').
+• For ER diagram clarity, annotate association lines with multiplicity (1..*, 0..1, etc.).
+• Provide indexes on frequently queried fields: Home.verificationStatus, DonationRequest.status, VolunteerRequest.status, User.role.
+
+---
+
+End of file.
