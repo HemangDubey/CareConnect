@@ -72,7 +72,7 @@ export default function HomeAdminLogin() {
               <p className="text-white/70 text-sm">Sign in to your admin dashboard</p>
             </div>
 
-            <div onSubmit={handleLogin}>
+            <form onSubmit={handleLogin}>
               {/* Error message */}
               {error && (
                 <div className="mb-6 bg-red-500/20 border border-red-400/30 rounded-xl p-4 backdrop-blur-sm">
@@ -127,8 +127,7 @@ export default function HomeAdminLogin() {
 
               {/* Login button */}
               <button
-                type="button"
-                onClick={handleLogin}
+                type="submit"
                 disabled={isLoading}
                 className="w-full relative overflow-hidden bg-gradient-to-r from-purple-500 via-purple-600 to-pink-500 text-white font-semibold py-4 px-6 rounded-xl hover:from-purple-600 hover:via-purple-700 hover:to-pink-600 focus:outline-none focus:ring-4 focus:ring-purple-400/50 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl"
               >
@@ -150,7 +149,7 @@ export default function HomeAdminLogin() {
                   </div>
                 )}
               </button>
-            </div>
+            </form>
 
             {/* Footer */}
             <div className="mt-8 text-center">

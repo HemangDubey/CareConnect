@@ -99,7 +99,7 @@
 
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -109,22 +109,31 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const { data: session } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ✅ Sync user (manual or Google) into state/localStorage
+  // Re-runs on route change (navbar stays mounted across client-side navigation,
+  // e.g. after login redirects) and on storage changes from other tabs.
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const syncUser = () => {
+      const token = localStorage.getItem("token");
+      const userData = localStorage.getItem("user");
 
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    } else if (session?.user) {
-      localStorage.setItem("user", JSON.stringify(session.user));
-      setUser(session.user);
-    } else {
-      setUser(null);
-    }
-  }, [session]);
+      if (token && userData) {
+        setUser(JSON.parse(userData));
+      } else if (session?.user) {
+        localStorage.setItem("user", JSON.stringify(session.user));
+        setUser(session.user);
+      } else {
+        setUser(null);
+      }
+    };
+
+    syncUser();
+    window.addEventListener("storage", syncUser);
+    return () => window.removeEventListener("storage", syncUser);
+  }, [session, pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");

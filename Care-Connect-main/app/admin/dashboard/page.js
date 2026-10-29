@@ -132,6 +132,12 @@ const AdminDashboard = () => {
     fetchUsers();
   }, [activeTab, fetchUsers]);
 
+  // Load counts for the overview stat cards regardless of the active tab
+  useEffect(() => {
+    fetchUsers();
+    fetchDonations();
+  }, [fetchUsers, fetchDonations]);
+
   // Fetch volunteer requests
   const fetchVolunteerRequests = useCallback(async () => {
     setVolunteerRequestsLoading(true);
@@ -347,13 +353,13 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-600 text-sm font-medium">{stat.title}</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">
+                    <div className="text-3xl font-bold text-slate-800 mt-1">
                       {loading ? (
                         <div className="w-16 h-8 bg-slate-200 rounded animate-pulse"></div>
                       ) : (
                         stat.value.toLocaleString()
                       )}
-                    </p>
+                    </div>
                   </div>
                   <div className={`p-3 rounded-xl ${stat.bgColor}`}>
                     <IconComponent className={`w-6 h-6 ${stat.textColor}`} />
